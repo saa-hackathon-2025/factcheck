@@ -159,8 +159,8 @@ export const analyzeCandidate = async (
   // Define Persona based on theme, BUT DO NOT mention 'Light Mode' or 'Dark Mode' to the AI.
   // Just give it the personality adjectives.
   const personaInstruction = themeMode === 'light'
-    ? "Persona: Energetic, Direct, Encouraging, Fast-paced."
-    : "Persona: Professional, Analytical, Deep, Critical, Serious.";
+    ? "Interviewer Tone: Practical, Fast-paced, Direct."
+    : "Interviewer Tone: Critical, Analytical, Deep-dive.";
 
   let candidateContent = "";
   if (inputData.docType === 'coverLetter') {
@@ -188,7 +188,7 @@ export const analyzeCandidate = async (
     **Configuration**:
     1. **Target Level**: ${inputData.interviewLevel}
     2. **Level Instruction**: ${getLevelInstructions(inputData.interviewLevel)}
-    3. **Interviewer Style**: ${personaInstruction}
+    3. **Interviewer Tone**: ${personaInstruction} (Note: This affects tone only, NOT scoring.)
     4. ${timeLimitInstruction}
 
     **Context**:
@@ -196,12 +196,17 @@ export const analyzeCandidate = async (
     - **Job Description**: ${jdContext}
     - **Candidate Document**: ${inputData.docType}
     
+    **GLOBAL PROHIBITION (CRITICAL)**:
+    - You must **NEVER** mention "Light Mode", "Dark Mode", "UI Theme", "Black Mode", "White Mode" in your output text (Summary, Alignment Analysis, Reasons, etc.). 
+    - You must **NEVER** adjust numerical scores based on the "Theme" or "Interviewer Tone". Scores must be purely based on technical merit and fact-checking.
+    
     **TASK 1: Evaluate Metrics (0-100) based on the 7 Criteria Table**:
     Analyze the code quality and engineering standards.
     **SCORING RULE**: 
     - Do NOT base the score solely on "Suspicion" or "Verification" status.
     - **Architecture, Code Quality, Problem Solving, Tech Proficiency, Project Completeness, Growth Potential**: These MUST be scored based on the ACTUAL CODE QUALITY provided in the context, regardless of whether it matches the resume perfectly. 
     - **Consistency**: This is the ONLY metric where you strictly penalize mismatches between Resume and Code.
+    - **OBJECTIVITY**: A score of 80 must be 80 regardless of whether the UI is light or dark. Do not penalize for "style" differences unless they are technical anti-patterns.
     
     1. **architecture** (아키텍처): System design patterns, directory structure, separation of concerns.
     2. **codeQuality** (코드 품질): Clean code, variable naming, modularity, presence of dead code.
@@ -219,11 +224,9 @@ export const analyzeCandidate = async (
     **TASK 3: Summary & Question Generation**:
     - **JD Analysis**: Narrative summary of company's core requirements. 
       **CRITICAL**: If the JD is missing or a URL you cannot read, DO NOT summarize the candidate's resume here. Instead state: "공고 URL 내용을 확인할 수 없어 일반적인 ${inputData.interviewLevel} 기준을 적용합니다."
-    - **Alignment**: Analyze Fact-check, Exaggeration, Code evidence, Stack consistency, Depth vs Level, Job Fit.
+    - **Alignment**: Analyze Fact-check, Exaggeration, Code evidence, Stack consistency, Depth vs Level, Job Fit. **(Do NOT mention the UI theme here.)**
     - **Tips**: 3 Probable Questions, 3 Weaknesses, 3 Answer Tips.
     - **Questions**: Generate pressure questions based on [Missing Evidence] or [Exaggeration].
-    
-    **Important**: Do NOT mention "Light Mode" or "Dark Mode" or "UI Theme" in your analysis text. Focus only on the technical content.
 
     **Special Instructions for ML/Research Repositories**:
     - If the repository contains Python ML code (PyTorch, TensorFlow, sklearn), focus on:
@@ -370,6 +373,7 @@ export const getInterviewFeedback = async (
        - **Look at the History**: Evaluate the **ENTIRE conversation history**. If the candidate explained their logic or attempted to answer in previous turns, base the score on those parts.
        - **Honesty Credit**: If the candidate admits ignorance (e.g., "I don't know") rather than making up a lie, award points for **HonestyScore**.
        - **Zero Score Condition**: Only assign 0 points if the candidate provided **absolutely no meaningful technical content** or refused to answer from the very beginning.
+       - **Theme Independence**: Do NOT adjust scores based on the "Dark Mode" or "Light Mode".
     3. **Evaluation Criteria**:
        - Did they answer within the expectations of a ${level}?
        - Did they prove their contribution?
