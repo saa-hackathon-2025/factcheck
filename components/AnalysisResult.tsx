@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { AnalysisResponse, VerdictType, AnalysisItem, EvaluationMetric } from '../types';
 
@@ -112,6 +113,8 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, onItem
   const { evaluation, summary } = result;
   
   // 7 Metrics Average Calculation
+  // We use only the technical metrics for the main score, or all 7.
+  // The user requested: "평가 점수를 7가지로 나누고 점수 계산은 평가 점수를 기준으로 판단해줘"
   const scores = [
     evaluation.architecture.score,
     evaluation.codeQuality.score,
@@ -132,11 +135,11 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, onItem
         <div className="bg-slate-50 dark:bg-slate-950 p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">면접 역량 정밀 분석 리포트</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">AI 면접관이 7가지 핵심 기술 지표를 기준으로 산출한 결과입니다.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">AI 면접관이 7가지 핵심 기술 지표를 기준으로 산출한 종합 결과입니다.</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <span className="block text-xs text-slate-500 font-bold uppercase">서류 역량 진단 (평균)</span>
+              <span className="block text-xs text-slate-500 font-bold uppercase">종합 역량 점수 (평균)</span>
               <span className={`text-3xl font-black ${avgScore >= 80 ? 'text-emerald-500 dark:text-emerald-400' : avgScore >= 60 ? 'text-amber-500 dark:text-amber-400' : 'text-rose-500'}`}>
                 {avgScore >= 90 ? 'S' : avgScore >= 80 ? 'A' : avgScore >= 70 ? 'B' : avgScore >= 50 ? 'C' : 'D'}
               </span>
@@ -155,16 +158,16 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, onItem
                상세 평가 지표 (7대 기준)
              </h3>
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-               <MetricBar label="아키텍처 이해도" data={evaluation.architecture} color="text-indigo-600 dark:text-indigo-400" />
-               <MetricBar label="코드 품질" data={evaluation.codeQuality} color="text-cyan-600 dark:text-cyan-400" />
+               <MetricBar label="1. 아키텍처 및 설계" data={evaluation.architecture} color="text-indigo-600 dark:text-indigo-400" />
+               <MetricBar label="2. 코드 품질" data={evaluation.codeQuality} color="text-cyan-600 dark:text-cyan-400" />
                
-               <MetricBar label="문제 해결력" data={evaluation.problemSolving} color="text-rose-600 dark:text-rose-400" />
-               <MetricBar label="기술 숙련도" data={evaluation.techProficiency} color="text-emerald-600 dark:text-emerald-400" />
+               <MetricBar label="3. 문제 해결력" data={evaluation.problemSolving} color="text-rose-600 dark:text-rose-400" />
+               <MetricBar label="4. 기술 숙련도" data={evaluation.techProficiency} color="text-emerald-600 dark:text-emerald-400" />
                
-               <MetricBar label="프로젝트 완성도" data={evaluation.projectCompleteness} color="text-amber-600 dark:text-amber-400" />
-               <MetricBar label="서류 일치성 (Fact)" data={evaluation.consistency} color="text-purple-600 dark:text-purple-400" />
+               <MetricBar label="5. 프로젝트 완성도" data={evaluation.projectCompleteness} color="text-amber-600 dark:text-amber-400" />
+               <MetricBar label="6. 서류/코드 일치성" data={evaluation.consistency} color="text-purple-600 dark:text-purple-400" />
                
-               <MetricBar label="성장 가능성" data={evaluation.growthPotential} color="text-blue-600 dark:text-blue-400" />
+               <MetricBar label="7. 성장 가능성" data={evaluation.growthPotential} color="text-blue-600 dark:text-blue-400" />
              </div>
           </div>
 
@@ -175,7 +178,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, onItem
                 <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{summary.jdAnalysis}</p>
              </div>
              <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-1 block">Step 2. 일치도 분석</span>
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-1 block">Step 2. 일치도 및 진실성 분석</span>
                 <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{summary.alignmentAnalysis}</p>
              </div>
           </div>
@@ -222,6 +225,9 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, onItem
           <span className="w-1 h-6 bg-rose-500 rounded-full"></span>
           항목별 팩트체크 및 실전 질문 ({result.items.length})
         </h3>
+        <p className="px-2 text-xs text-slate-500">
+          * Fact Check 결과는 '서류/코드 일치성' 항목 점수에만 반영됩니다.
+        </p>
         <div className="grid gap-4">
           {result.items.map((item, idx) => (
             <ResultItemCard 

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { AnalysisResponse, VerdictType, AnalysisItem, ChatMessage, InterviewFeedbackResponse, InputData, InterviewLevel } from '../types';
 
@@ -32,7 +33,7 @@ const analysisSchema: Schema = {
     },
     evaluation: {
       type: Type.OBJECT,
-      description: "Score the candidate based on 7 distinct technical criteria (0-100).",
+      description: "Score the candidate based on 7 distinct technical criteria (0-100). Do NOT base scores solely on the 'Consistency' metric.",
       properties: {
         architecture: { type: Type.OBJECT, properties: { score: { type: Type.NUMBER }, reason: { type: Type.STRING } } },
         codeQuality: { type: Type.OBJECT, properties: { score: { type: Type.NUMBER }, reason: { type: Type.STRING } } },
@@ -65,16 +66,16 @@ const analysisSchema: Schema = {
   required: ["items", "evaluation", "summary"],
 };
 
-// 2. Feedback Schema (REMOVED HONESTY, SCALED TO 10)
+// 2. Feedback Schema
 const feedbackSchema: Schema = {
   type: Type.OBJECT,
   properties: {
     defenseScore: { type: Type.NUMBER, description: "Sum of logicScore + solutionScore. Max 10." },
     logicScore: { type: Type.NUMBER, description: "Score out of 5 (Logical Consistency)." },
-    logicReasoning: { type: Type.STRING, description: "If score is 0, MUST start with '[0점 처리 사유]:'" },
+    logicReasoning: { type: Type.STRING, description: "Summary of logical performance. MUST mention both good answers and 0-point answers." },
     logicImprovement: { type: Type.STRING },
     solutionScore: { type: Type.NUMBER, description: "Score out of 5 (Problem Solving & Alternatives)." },
-    solutionReasoning: { type: Type.STRING, description: "If score is 0, MUST start with '[0점 처리 사유]:'" },
+    solutionReasoning: { type: Type.STRING, description: "Summary of solution quality." },
     solutionImprovement: { type: Type.STRING },
     feedbackSummary: { type: Type.STRING },
     positiveFeedback: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -150,12 +151,9 @@ export const analyzeCandidate = async (
   codeContext: string
 ): Promise<AnalysisResponse> => {
   const ai = getAiClient();
-  const themeMode = inputData.themeMode || 'dark';
 
-  // Define Persona based on theme, BUT DO NOT mention 'Light Mode' or 'Dark Mode' in content
-  const personaInstruction = themeMode === 'light'
-    ? "Interviewer Tone: Practical, Fast-paced, Direct."
-    : "Interviewer Tone: Critical, Analytical, Deep-dive.";
+  // Define Persona (Neutral, strictly technical)
+  const personaInstruction = "Interviewer Tone: Analytical, Objective, and Fact-Based. You are a code auditor.";
 
   let candidateContent = "";
   if (inputData.docType === 'coverLetter') {
@@ -192,38 +190,38 @@ export const analyzeCandidate = async (
     - **Candidate Document**: ${inputData.docType}
     
     **GLOBAL PROHIBITION (CRITICAL)**:
-    - You must **NEVER** mention "Light Mode", "Dark Mode", "UI Theme", "Black Mode", "White Mode" in your output text (Summary, Alignment Analysis, Reasons, etc.). 
-    - **The UI theme is only for your 'Persona/Tone' simulation (e.g., be direct vs. be deep-dive). Do NOT mention the theme itself.**
+    - You must **NEVER** mention "Light Mode", "Dark Mode", "UI Theme" in your output text.
+    - Your analysis must be purely technical.
     
     **TASK 1: Evaluate Metrics (0-100) based on the 7 Criteria Table**:
     Analyze the code quality and engineering standards.
-    **SCORING RULE**: 
-    - Do NOT base the score solely on "Suspicion" or "Verification" status.
-    - **Architecture, Code Quality, Problem Solving, Tech Proficiency, Project Completeness, Growth Potential**: These MUST be scored based on the ACTUAL CODE QUALITY provided in the context.
-    - **Consistency**: This is the ONLY metric where you strictly penalize mismatches between Resume and Code.
-    - **OBJECTIVITY**: A score of 80 must be 80 regardless of whether the UI is light or dark. Do not penalize for "style" differences unless they are technical anti-patterns.
     
-    1. **architecture** (아키텍처): System design patterns, directory structure, separation of concerns.
-    2. **codeQuality** (코드 품질): Clean code, variable naming, modularity, presence of dead code.
-    3. **problemSolving** (문제 해결력): Logic complexity, algorithm usage, handling edge cases.
-    4. **techProficiency** (기술 숙련도): Depth of library/framework usage (not just boilerplate).
-    5. **projectCompleteness** (완성도): Runnable state, README quality, test coverage, CI/CD.
-    6. **consistency** (일치성): Does the code *actually* contain what the resume claims? (Fact Check score).
-    7. **growthPotential** (성장 가능성): Evidence of learning, refactoring, or modern practices.
+    **SCORING RULES (CRITICAL)**:
+    - **Architecture, Code Quality, Problem Solving, Tech Proficiency, Project Completeness, Growth Potential**: 
+      Score these based on the **ACTUAL CODE QUALITY** in the context. 
+      *Example: Even if the candidate lied about using Kafka, if their Java code structure is excellent, 'Code Quality' should be High (80+).*
+    - **Consistency**: 
+      This is the **ONLY** metric where you penalize mismatches/lies between Resume and Code. 
+      *Example: If they lied about Kafka, 'Consistency' is Low (20), but 'Code Quality' stays High (80).*
+    - **Objectivity**: Do not let the 'Consistency' score drag down other technical scores unless the code itself is bad.
+    
+    1. **architecture**: System design, directory structure, separation of concerns.
+    2. **codeQuality**: Clean code, naming, modularity, readability.
+    3. **problemSolving**: Logic complexity, algorithm usage, edge case handling.
+    4. **techProficiency**: Depth of usage (not just boilerplate), library knowledge.
+    5. **projectCompleteness**: Runnable state, tests, README, CI/CD, documentation.
+    6. **consistency**: Fact Check Score. Does the code prove the resume claims?
+    7. **growthPotential**: Evidence of modern practices, refactoring, learning.
 
     **TASK 2: Identify Fact-Check Items**:
-    Find mismatches, exaggerations, or missing proofs between Candidate Document and Code/JD.
-    - If code supports the claim -> Verdict: VERIFIED.
-    - If code contradicts or is missing -> Verdict: EXAGGERATED / MISSING.
-    - If code is too simple for the claim -> Verdict: EXAGGERATED.
+    Find mismatches, exaggerations, or missing proofs.
+    - Verdict: VERIFIED, EXAGGERATED, MISSING, UNCERTAIN.
     
     **TASK 3: Generate Summary**:
-    - JD Analysis: What is the company looking for?
-    - Alignment Analysis: How well does the candidate fit? Where are the lies/truths?
-    - Practical Tips: Specific questions to ask and improvements.
+    - JD Analysis, Alignment Analysis, Practical Tips.
 
     **INPUT CODE SNIPPETS**:
-    ${codeContext.substring(0, 100000)} // Limit context size
+    ${codeContext.substring(0, 100000)}
 
     **INPUT CANDIDATE DOCUMENT**:
     ${candidateContent.substring(0, 20000)}
@@ -236,7 +234,7 @@ export const analyzeCandidate = async (
       config: {
         responseMimeType: "application/json",
         responseSchema: analysisSchema,
-        temperature: 0.2, // Low temp for factual analysis
+        temperature: 0.2,
       },
     });
     const text = response.text;
@@ -248,53 +246,48 @@ export const chatWithInterviewer = async (
   history: ChatMessage[],
   item: AnalysisItem,
   level: InterviewLevel,
-  timeLimitSeconds: number | undefined,
-  themeMode: 'light' | 'dark'
+  timeLimitSeconds: number | undefined
+  // Removed themeMode to prevent hallucination
 ): Promise<string> => {
   const ai = getAiClient();
   
-  const personaInstruction = themeMode === 'light'
-    ? "Your tone is direct, practical, and fast-paced."
-    : "Your tone is critical, deep-diving, and slightly skeptical.";
+  const personaInstruction = "Your tone is critical, deep-diving, and professional. Focus only on the technical validation.";
 
   const timeLimitInstruction = timeLimitSeconds
-    ? `IMPORTANT: The user has a ${timeLimitSeconds}s time limit per answer. If their answer is very short or feels rushed, ask them to elaborate if time permits, or penalize them if they missed the core point.`
+    ? `IMPORTANT: The user has a ${timeLimitSeconds}s time limit. If they answer too briefly or vaguely, press them for details.`
     : "";
+
+  const internInstruction = level === 'intern' 
+    ? `**INTERN SPECIAL RULE**: If the candidate answers "모르겠습니다" (I don't know), "..." or gives a very weak/empty answer:
+       - **Be Encouraging**: respond kindly (e.g., "괜찮습니다. 처음엔 어려울 수 있습니다.").
+       - **Provide a Hint**: Give a technical clue or ask a simpler related question to guide them.
+       - Do NOT be aggressive or fail them immediately.`
+    : ``;
 
   const systemPrompt = `
     You are a Technical Lead Interviewer (FactCheck AI). 
-    You are currently interviewing a candidate about a specific suspicion found in their resume vs code.
-    
-    **Topic**: ${item.topic}
-    **Verdict**: ${item.verdict}
-    **Code Observation**: ${item.codeObservation}
-    **Level**: ${level}
-    **Tone**: ${personaInstruction}
+    Topic: ${item.topic}
+    Verdict: ${item.verdict}
+    Code Observation: ${item.codeObservation}
+    Level: ${level}
+    Tone: ${personaInstruction}
     ${timeLimitInstruction}
+    ${internInstruction}
     
-    **Goal**: Drill down into the technical details to verify if they really understand what they wrote.
+    **Goal**: Verify technical depth.
     **Rules**:
     1. Keep responses short and sharp (max 2-3 sentences).
-    2. Do NOT be polite. Be professional but demanding.
-    3. If they give a vague answer, ask for specific function names, logic flow, or error handling details.
-    4. **STRICT TURNS**: You MUST ask at least 10 questions in total before concluding. Count the user's turns. If turns < 10, KEEP ASKING technical deep-dive questions.
-    5. Only after 10 questions, if satisfied or if they fail completely, say "면접을 종료하겠습니다." to end the chat.
-    6. Speak in Korean.
-    7. **NEVER** mention "Light Mode" or "Dark Mode" in your chat responses.
+    2. Ask specific technical questions (function names, logic, error handling).
+    3. **STRICT TURNS**: Ask at least 10 questions.
+    4. Only after 10 questions, say "면접을 종료하겠습니다.".
+    5. Speak in Korean.
+    6. **NEVER** mention "Light Mode" or "Dark Mode".
   `;
 
-  // Wrap in Retry Logic to handle API failures during chat
   return callWithRetry(async () => {
-    // We strictly use the history provided by the React state.
-    // However, to avoid context limits or format issues, we sanitize and limit it.
-    
     const lastUserMsg = history[history.length - 1];
-    
-    // Valid history for Gemini must alternate or at least be well-formed.
-    // We take previous messages (excluding the current user message we want to send).
     let previousMessages = history.slice(0, -1);
 
-    // Context Window Optimization: Keep last 20 messages (approx 10 turns)
     if (previousMessages.length > 20) {
       previousMessages = previousMessages.slice(-20);
     }
@@ -313,7 +306,6 @@ export const chatWithInterviewer = async (
       history: formattedHistory
     });
 
-    // Fix: sendMessage expects an object in newer SDKs to properly match signatures
     const result = await chatSession.sendMessage({ message: lastUserMsg.text });
     return result.text;
   });
@@ -322,47 +314,40 @@ export const chatWithInterviewer = async (
 export const getInterviewFeedback = async (
   history: ChatMessage[],
   item: AnalysisItem,
-  level: InterviewLevel,
-  themeMode: 'light' | 'dark'
+  level: InterviewLevel
+  // Removed themeMode
 ): Promise<InterviewFeedbackResponse> => {
   const ai = getAiClient();
   
   const prompt = `
     Analyze the following technical interview transcript.
-    The interviewer (AI) questioned the candidate about: "${item.topic}".
-    The suspicion was: ${item.codeObservation}.
+    Topic: "${item.topic}".
     Target Level: ${level}.
 
-    **CRITICAL SCORING ALIGNMENT RULE**:
-    - The numerical score **MUST** strictly reflect the sentiment of your "Reasoning" and "Improvement" text.
-    - If you write "The candidate explained the core concept perfectly", the Logic Score **MUST** be 5.0.
-    - If you write "The explanation was vague and missed the key point", the Logic Score **MUST** be below 3.0.
-    - **Prohibited**: Do NOT give a high score (4-5) if you listed critical "Action Items" implying they don't know the basics.
-    - **Prohibited**: Do NOT give a low score (1-2) if your feedback text says "Good answer".
+    **SCORING RULES (CRITICAL)**:
+    1. **Evaluate the ENTIRE conversation**:
+       - Do NOT judge the candidate solely on the *last* answer.
+       - If they answered Questions 1-9 well but failed Question 10, the score should reflect the 9 good answers (e.g., 4.0/5.0), NOT 0.
+    
+    2. **ZERO SCORE CONDITION**:
+       - IF a specific answer is "I don't know" (모르겠습니다), "No answer" (무답변), or "Nonsense" (이해 불가) WITHOUT any attempt to deduce:
+         -> **That specific turn counts as 0 points.**
+       - **However**, previous valid answers must still be credited.
+    
+    3. **Logic Reasoning Output**:
+       - You MUST explicitly mention which parts were good and which were 0-points.
+       - Format: "You explained [Concept A] well, but for [Question B], you failed to answer (0 points applied)."
+       - If the *entire* interview was nonsense, then give 0 total.
 
     **SCORING CRITERIA (Total 10 Points)**:
-    1. **Logic Score (5 Points)**: 
-       - Did the candidate explain the "Why" and "How" logically? 
-       - Did they use correct terminology?
-       - If they provided good technical reasoning, give HIGH score (4.0-5.0).
-       - If they were vague or dodged the question, give LOW score.
-       - **ZERO SCORE RULE**: If the candidate answered "모르겠습니다" (I don't know), gave an empty answer, or provided a completely irrelevant/nonsense response (무답변, 이해 불가) without attempting to guess or deduce, set score to 0. 
+    - **Logic Score (5)**: Consistency, terminology, reasoning depth.
+    - **Solution Score (5)**: Problem solving, alternatives, concrete examples.
 
-    2. **Solution Score (5 Points)**:
-       - Did they provide a concrete solution or alternative?
-       - Even if they didn't know the exact answer, did they propose a workaround?
-       - **ZERO SCORE RULE**: If they just gave up without offering a solution, or the answer was "I don't know" / empty / nonsense, set score to 0.
-       - **CALIBRATION**: If they solved the problem, score MUST be above 4.5/5.
-
-    **TOTAL SCORE**: Logic (5) + Solution (5) = 10.
-    
     **OUTPUT RULES**:
-    - Provide the sum as 'defenseScore' (max 10).
-    - If any score is 0, start the 'Reasoning' text with "[0점 처리 사유]:".
-    - 'positiveFeedback': 3 things they did well.
-    - 'constructiveFeedback': 3 things to improve.
-    - 'actionItems': 3 concrete technical tasks to study (e.g., "Study Redis AOF persistence").
-    - **Language**: Korean.
+    - 'defenseScore': sum of logic + solution.
+    - If there was a 0-point answer, start 'logicReasoning' with "[0점 처리 사유 포함]:" (Included 0-point reason).
+    - Provide 3 positive, 3 constructive, 3 action items.
+    - Language: Korean.
 
     **TRANSCRIPT**:
     ${history.map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n')}

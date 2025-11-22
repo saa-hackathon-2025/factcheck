@@ -27,8 +27,8 @@ const App: React.FC = () => {
   const { theme } = useTheme();
 
   const handleAnalyze = async (data: InputData) => {
-    const dataWithTheme = { ...data, themeMode: theme };
-    setInputData(dataWithTheme); // Save input data with theme
+    // We do NOT pass theme to the inputData for AI analysis anymore to prevent hallucinations.
+    setInputData(data); 
     setIsLoading(true);
     setLoadingMessage("GitHub 레포지토리 연결 중...");
 
@@ -47,9 +47,9 @@ const App: React.FC = () => {
         ${repoContextData.fileContents}
       `;
 
-      // Step 2: Gemini Analysis with new complex inputs
+      // Step 2: Gemini Analysis
       const analysisData = await analyzeCandidate(
-        dataWithTheme,
+        data,
         fullCodeContext
       );
       
@@ -79,8 +79,8 @@ const App: React.FC = () => {
       const feedbackData = await getInterviewFeedback(
         history, 
         selectedItem, 
-        inputData.interviewLevel,
-        theme // Pass current theme for feedback generation
+        inputData.interviewLevel
+        // Removed theme arg
       );
       setFeedback(feedbackData);
       setView('FEEDBACK');

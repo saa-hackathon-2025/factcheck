@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AnalysisItem, ChatMessage, InterviewLevel } from '../types';
 import { chatWithInterviewer } from '../services/geminiService';
-import { useTheme } from '../context/ThemeContext';
+// Removed unused useTheme
 
 interface InterviewChatProps {
   item: AnalysisItem;
@@ -33,7 +33,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  const { theme } = useTheme();
+  // Removed theme context usage to prevent leak
 
   // Calculate current question number (User messages count)
   const currentQuestionCount = messages.filter(m => m.role === 'user').length + 1;
@@ -84,8 +84,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         currentHistory, 
         item, 
         interviewLevel, 
-        timeLimitSeconds,
-        theme // Pass theme here
+        timeLimitSeconds
+        // Removed theme arg
       );
       const updatedHistory = [...currentHistory, { role: 'model' as const, text: responseText }];
       

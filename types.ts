@@ -62,7 +62,7 @@ export interface InputData {
   // Interview Config
   interviewLevel: InterviewLevel;
   timeLimitSeconds?: number;
-  themeMode?: 'light' | 'dark'; // Added for theme-aware analysis
+  // REMOVED: themeMode (to prevent AI hallucinations about UI theme)
 
   // Company Info
   talentIdeal: string; // 인재상
