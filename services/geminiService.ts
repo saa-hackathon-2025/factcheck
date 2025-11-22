@@ -160,8 +160,8 @@ export const analyzeCandidate = async (
 
   // Tone instructions based on theme
   const toneInstruction = themeMode === 'light'
-    ? "Tone: Bright, Direct, Clear. Be straightforward and energetic."
-    : "Tone: Calm, Analytical, Serious. Be deep, logical, and professional.";
+    ? "Tone: Bright, Energetic, Crisp. Be sharp but encouraging, like a supportive senior mentor."
+    : "Tone: Calm, Deep, Analytical. Be serious and critical, like a strict code reviewer.";
 
   let candidateContent = "";
   if (inputData.docType === 'coverLetter') {
@@ -219,7 +219,7 @@ export const analyzeCandidate = async (
     - **Alignment**: Analyze Fact-check, Exaggeration, Code evidence, Stack consistency, Depth vs Level, Job Fit.
     - **Tips**: 3 Probable Questions, 3 Weaknesses, 3 Answer Tips.
     - **Questions**: Generate pressure questions based on [Missing Evidence] or [Exaggeration].
-    - **Note on UI Mode**: In the analysis summary, briefly mention the UI mode context (e.g., "현재 ${themeMode} 모드 환경에 맞춰 분석되었습니다. 집중력을 유지하세요.").
+    - **Note on UI Mode**: In the analysis summary, briefly mention the UI mode context (e.g., "현재 ${themeMode === 'light' ? '밝은' : '차분한'} 분위기에서 분석되었습니다. ${themeMode === 'light' ? '긍정적인 에너지를 보여주세요.' : '차분하게 논리를 전개하세요.'}").
 
     **Special Instructions for ML/Research Repositories**:
     - If the repository contains Python ML code (PyTorch, TensorFlow, sklearn), focus on:
@@ -287,20 +287,21 @@ export const chatWithInterviewer = async (
   const lastUserMessage = history[history.length - 1]?.text.trim();
 
   // **Rule: Silence / Failed Answer / Time Limit Handling**
-  const silenceTriggers = ["", "모르겠습니다", "모름", "기억안남", "pass", "패스", "...", "잘 모르겠어요"];
-  const isSilence = !lastUserMessage || silenceTriggers.includes(lastUserMessage);
+  const silenceTriggers = ["", "모르겠습니다", "모름", "기억안남", "pass", "패스", "...", "잘 모르겠어요", "시간 초과", "(답변 시간 초과)"];
+  const isSilence = !lastUserMessage || silenceTriggers.some(t => lastUserMessage.includes(t));
 
   if (isSilence) {
     if (timeLimit) {
-      return "답변 시간이 초과되었습니다. 괜찮아요. 실전에서도 긴장하면 그럴 수 있어요. 처음이라 그래요. 다음 질문은 편하게 대답해보세요. (시간 제한 내 답변을 위해 핵심만 요약하는 연습이 필요합니다)";
+      // Prompt specifically asked for an "appropriate comment" when time limit fails
+      return `시간이 종료되었습니다. ${themeMode === 'light' ? '아쉽지만, 다음 질문에서 만회해봅시다!' : '실전에서는 시간 관리도 실력입니다. 집중하세요.'} 다음 질문으로 넘어가겠습니다.`;
     }
-    return "괜찮아요. 처음이라 그래요. 떨려서 그럴 수 있어요. 편하게 다시 생각해보거나 다음 질문으로 넘어갈까요?";
+    return `괜찮습니다. ${themeMode === 'light' ? '긴장하지 말고 편하게 이야기해보세요.' : '답변이 어렵다면 솔직하게 말하고 다음으로 넘어가도 좋습니다.'} 다른 질문을 드려볼까요?`;
   }
 
   // Tone instructions based on theme
   const tonePrompt = themeMode === 'light'
-    ? "Tone: Bright, Direct, Clear. Be energetic and encourage efficiency."
-    : "Tone: Calm, Analytical, Serious. Be professional and deep.";
+    ? "Tone: Bright, Direct, Crisp. Be energetic. If the answer is good, praise efficiently."
+    : "Tone: Calm, Analytical, Serious. Be professional. If the answer is good, acknowledge quietly.";
 
   const systemPrompt = `
     You are a sharp, skeptical Technical Interviewer. 
@@ -362,14 +363,14 @@ export const getInterviewFeedback = async (
     **Rules**:
     1. **Language**: Korean Only.
     2. **Scoring Rule (CRITICAL)**:
-       - If the user response includes "pass", "I don't know", "...", silence, or the interviewer mentioned "답변 시간이 초과되었습니다":
+       - If the user response includes "pass", "I don't know", "...", silence, "시간 초과", or the interviewer mentioned "시간이 종료되었습니다":
          -> **STRICTLY SET ALL SCORES (Logic, Honesty, Solution) TO 0 POINTS.** (Answer was missing or invalid).
-         -> In 'feedbackSummary', you MUST output exactly: "답변이 입력되지 않았거나 이해할 수 없어 0점 처리되었습니다. 모르더라도 아는 만큼 논리적으로 설명하는 시도가 필요합니다."
+         -> In 'feedbackSummary', you MUST output exactly: "답변이 입력되지 않았거나 시간 내에 답변하지 못해 0점 처리되었습니다. ${themeMode === 'light' ? '다음엔 더 자신감 있게 도전해보세요!' : '시간 관리와 순발력 훈련이 필요합니다.'}"
     3. **Evaluation Criteria**:
        - Did they answer within the expectations of a ${level}?
        - Did they prove their contribution?
     4. **Theme Context**:
-       - Add a brief comment in 'feedbackSummary' or 'actionItems' about how the user handled the pressure in ${themeMode} mode (e.g., "In ${themeMode} mode, maintaining focus/brightness is key...").
+       - Add a brief comment in 'feedbackSummary' or 'actionItems' about how the user handled the pressure in ${themeMode} mode.
 
     **Context**:
     - Topic: ${item.topic}
