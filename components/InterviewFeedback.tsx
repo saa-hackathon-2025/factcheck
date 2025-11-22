@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { InterviewFeedbackResponse } from '../types';
 
@@ -18,10 +19,14 @@ const ScoreItem: React.FC<{
 }> = ({ label, score, maxScore, reasoning, improvement, colorClass, barClass }) => {
   const percentage = Math.min(100, Math.max(0, (score / maxScore) * 100));
   
+  // Check for the [0점 처리 사유] tag
+  const isZeroPenalty = reasoning.includes('[0점 처리 사유]');
+  const cleanReasoning = reasoning.replace('[0점 처리 사유]:', '').replace('[0점 처리 사유]', '').trim();
+
   return (
     <div className="mb-8 last:mb-0 group">
       <div className="flex justify-between items-end mb-2">
-        <span className={`font-bold ${colorClass} text-lg`}>{label}</span>
+        <span className={`font-bold ${colorClass} text-lg`}>{label} <span className="text-xs text-slate-400 font-normal">({maxScore}점 만점)</span></span>
         <span className="text-sm font-mono text-slate-400">
           <span className={`text-2xl font-bold ${colorClass}`}>{score}</span>
           <span className="text-slate-500 dark:text-slate-600">/{maxScore}</span>
@@ -38,27 +43,41 @@ const ScoreItem: React.FC<{
       
       {/* Reasoning & Improvement Grid */}
       <div className="grid grid-cols-1 gap-3">
-        {/* Good Point (Green) */}
-        <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/20 flex items-start gap-3 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-950/50">
-          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center mt-0.5">
-             <span className="text-emerald-600 dark:text-emerald-400 text-xs">👍</span>
+        {/* Reasoning Section (Green usually, Red if 0 point penalty) */}
+        <div className={`p-3 rounded-lg border flex items-start gap-3 transition-colors ${
+          isZeroPenalty 
+            ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-500/20 hover:bg-rose-100' 
+            : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/50'
+        }`}>
+          <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${
+            isZeroPenalty ? 'bg-rose-500/20' : 'bg-emerald-500/20'
+          }`}>
+             <span className={`text-xs ${isZeroPenalty ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+               {isZeroPenalty ? '⚠️' : '👍'}
+             </span>
           </div>
           <div>
-             <span className="block text-xs font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-wide mb-1">획득 근거</span>
-             <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{reasoning}</p>
+             <span className={`block text-xs font-bold uppercase tracking-wide mb-1 ${
+               isZeroPenalty ? 'text-rose-600 dark:text-rose-500' : 'text-emerald-600 dark:text-emerald-500'
+             }`}>
+               {isZeroPenalty ? '0점 처리 사유 (Zero Score Reason)' : '획득 근거'}
+             </span>
+             <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+               {cleanReasoning}
+             </p>
           </div>
         </div>
         
-        {/* Bad Point (Red) - Show if score is deducted or improvement text exists */}
+        {/* Improvement (Red) - Show if score is deducted or improvement text exists */}
         {(score < maxScore || (improvement && improvement.length > 0)) && (
-          <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-500/20 flex items-start gap-3 transition-colors hover:bg-rose-100 dark:hover:bg-rose-950/50">
-             <div className="flex-shrink-0 w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center mt-0.5">
-                <span className="text-rose-600 dark:text-rose-400 text-xs">👎</span>
+          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-500/20 flex items-start gap-3 transition-colors hover:bg-amber-100 dark:hover:bg-amber-950/50">
+             <div className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center mt-0.5">
+                <span className="text-amber-600 dark:text-amber-400 text-xs">💡</span>
              </div>
              <div>
-                <span className="block text-xs font-bold text-rose-600 dark:text-rose-500 uppercase tracking-wide mb-1">감점 사유</span>
+                <span className="block text-xs font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wide mb-1">보완 가이드</span>
                 <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-                  {improvement || "구체적인 설명이 부족하거나 논리가 약하여 감점되었습니다."}
+                  {improvement || "더 구체적인 근거를 제시하면 점수를 높일 수 있습니다."}
                 </p>
              </div>
           </div>
@@ -86,10 +105,13 @@ const FeedbackList: React.FC<{ title: string; items: string[]; color: string; ic
 );
 
 const InterviewFeedback: React.FC<InterviewFeedbackProps> = ({ feedback, onClose }) => {
-  // Determine logic for color coding total score
-  const totalScoreColor = feedback.defenseScore >= 70 ? 'text-emerald-600 dark:text-emerald-400' : feedback.defenseScore >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-500';
-  const totalBorderColor = feedback.defenseScore >= 70 ? 'border-emerald-500' : feedback.defenseScore >= 40 ? 'border-amber-500' : 'border-rose-500';
-  const totalRingColor = feedback.defenseScore >= 70 ? 'ring-emerald-500/20' : feedback.defenseScore >= 40 ? 'ring-amber-500/20' : 'ring-rose-500/20';
+  // Explicitly calculate total to match user expectation (Sum of parts)
+  const totalScore = feedback.logicScore + feedback.solutionScore;
+
+  // Determine logic for color coding total score (Scale is now 10)
+  const totalScoreColor = totalScore >= 7 ? 'text-emerald-600 dark:text-emerald-400' : totalScore >= 4 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-500';
+  const totalBorderColor = totalScore >= 7 ? 'border-emerald-500' : totalScore >= 4 ? 'border-amber-500' : 'border-rose-500';
+  const totalRingColor = totalScore >= 7 ? 'ring-emerald-500/20' : totalScore >= 4 ? 'ring-amber-500/20' : 'ring-rose-500/20';
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fade-in pb-12">
@@ -100,8 +122,9 @@ const InterviewFeedback: React.FC<InterviewFeedbackProps> = ({ feedback, onClose
         
         <div className={`relative w-40 h-40 flex-shrink-0 rounded-full border-8 ${totalBorderColor} flex items-center justify-center bg-slate-50 dark:bg-slate-950 shadow-[0_0_40px_rgba(0,0,0,0.1)] dark:shadow-[0_0_40px_rgba(0,0,0,0.6)] ring-4 ${totalRingColor}`}>
           <div className="text-center z-10">
-            <span className="block text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Total Score</span>
-            <span className={`text-6xl font-black tracking-tighter ${totalScoreColor}`}>{feedback.defenseScore}</span>
+            <span className="block text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Total Score (합산)</span>
+            <span className={`text-6xl font-black tracking-tighter ${totalScoreColor}`}>{totalScore}</span>
+            <span className="block text-[10px] text-slate-400 font-medium mt-1">/ 10점 만점</span>
           </div>
         </div>
         
@@ -110,10 +133,24 @@ const InterviewFeedback: React.FC<InterviewFeedbackProps> = ({ feedback, onClose
             면접 방어력 분석 리포트
             <span className="px-2 py-1 rounded text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-normal">AI 검증 완료</span>
           </h2>
+          
+          {/* Score Formula Legend (Updated to 2 items) */}
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-6 text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 px-3 py-2 rounded-lg w-fit mx-auto md:mx-0 border border-slate-200 dark:border-slate-700">
+             <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold">
+               <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>Logic(5점)
+             </span>
+             <span>+</span>
+             <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-bold">
+               <span className="w-2 h-2 bg-amber-500 rounded-full"></span>Solution(5점)
+             </span>
+             <span>=</span>
+             <strong className="text-slate-900 dark:text-slate-100 border-b border-slate-400 dark:border-slate-500">Total(10점)</strong>
+          </div>
+
           <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-2xl leading-relaxed">
-            심층 압박 면접 결과를 바탕으로 <span className="text-slate-800 dark:text-slate-200 font-semibold">지원자님</span>의 기술적 타당성과 정직함을 분석했습니다.
+            면접 방어 점수는 2가지 항목의 <strong className="text-slate-900 dark:text-white">합산</strong>으로 계산됩니다.
             <br className="hidden md:block"/>
-            점수가 낮더라도 걱정하지 마세요. 아래의 <span className="text-indigo-600 dark:text-indigo-400 font-semibold">Action Item</span>을 통해 보완할 수 있습니다.
+            논리적 설명(5점)과 대안 제시(5점)를 모두 충족해야 만점을 받을 수 있습니다.
           </p>
            <div className="inline-flex items-center gap-3 bg-slate-50 dark:bg-slate-950/50 px-6 py-4 rounded-xl text-sm text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-lg">
             <span className="text-2xl">💡</span>
@@ -134,7 +171,7 @@ const InterviewFeedback: React.FC<InterviewFeedbackProps> = ({ feedback, onClose
           <ScoreItem 
             label="논리적 타당성" 
             score={feedback.logicScore} 
-            maxScore={40} 
+            maxScore={5} 
             reasoning={feedback.logicReasoning}
             improvement={feedback.logicImprovement}
             colorClass="text-indigo-600 dark:text-indigo-400"
@@ -142,19 +179,9 @@ const InterviewFeedback: React.FC<InterviewFeedbackProps> = ({ feedback, onClose
           />
           
           <ScoreItem 
-            label="솔직함 & 인정" 
-            score={feedback.honestyScore} 
-            maxScore={30} 
-            reasoning={feedback.honestyReasoning}
-            improvement={feedback.honestyImprovement}
-            colorClass="text-emerald-600 dark:text-emerald-400"
-            barClass="bg-emerald-500"
-          />
-          
-          <ScoreItem 
             label="해결 방안 제시" 
             score={feedback.solutionScore} 
-            maxScore={30} 
+            maxScore={5} 
             reasoning={feedback.solutionReasoning}
             improvement={feedback.solutionImprovement}
             colorClass="text-amber-600 dark:text-amber-400"

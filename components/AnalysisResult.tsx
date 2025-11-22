@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { AnalysisResponse, VerdictType, AnalysisItem, EvaluationMetric } from '../types';
 
@@ -137,7 +136,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, onReset, onItem
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <span className="block text-xs text-slate-500 font-bold uppercase">종합 등급</span>
+              <span className="block text-xs text-slate-500 font-bold uppercase">서류 역량 진단 (평균)</span>
               <span className={`text-3xl font-black ${avgScore >= 80 ? 'text-emerald-500 dark:text-emerald-400' : avgScore >= 60 ? 'text-amber-500 dark:text-amber-400' : 'text-rose-500'}`}>
                 {avgScore >= 90 ? 'S' : avgScore >= 80 ? 'A' : avgScore >= 70 ? 'B' : avgScore >= 50 ? 'C' : 'D'}
               </span>

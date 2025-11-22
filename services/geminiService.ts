@@ -65,19 +65,16 @@ const analysisSchema: Schema = {
   required: ["items", "evaluation", "summary"],
 };
 
-// 2. Feedback Schema
+// 2. Feedback Schema (REMOVED HONESTY, SCALED TO 10)
 const feedbackSchema: Schema = {
   type: Type.OBJECT,
   properties: {
-    defenseScore: { type: Type.NUMBER },
-    logicScore: { type: Type.NUMBER },
-    logicReasoning: { type: Type.STRING },
+    defenseScore: { type: Type.NUMBER, description: "Sum of logicScore + solutionScore. Max 10." },
+    logicScore: { type: Type.NUMBER, description: "Score out of 5 (Logical Consistency)." },
+    logicReasoning: { type: Type.STRING, description: "If score is 0, MUST start with '[0점 처리 사유]:'" },
     logicImprovement: { type: Type.STRING },
-    honestyScore: { type: Type.NUMBER },
-    honestyReasoning: { type: Type.STRING },
-    honestyImprovement: { type: Type.STRING },
-    solutionScore: { type: Type.NUMBER },
-    solutionReasoning: { type: Type.STRING },
+    solutionScore: { type: Type.NUMBER, description: "Score out of 5 (Problem Solving & Alternatives)." },
+    solutionReasoning: { type: Type.STRING, description: "If score is 0, MUST start with '[0점 처리 사유]:'" },
     solutionImprovement: { type: Type.STRING },
     feedbackSummary: { type: Type.STRING },
     positiveFeedback: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -87,7 +84,6 @@ const feedbackSchema: Schema = {
   required: [
     "defenseScore", 
     "logicScore", "logicReasoning", "logicImprovement",
-    "honestyScore", "honestyReasoning", "honestyImprovement",
     "solutionScore", "solutionReasoning", "solutionImprovement",
     "feedbackSummary", "positiveFeedback", "constructiveFeedback", "actionItems"
   ],
@@ -156,8 +152,7 @@ export const analyzeCandidate = async (
   const ai = getAiClient();
   const themeMode = inputData.themeMode || 'dark';
 
-  // Define Persona based on theme, BUT DO NOT mention 'Light Mode' or 'Dark Mode' to the AI.
-  // Just give it the personality adjectives.
+  // Define Persona based on theme, BUT DO NOT mention 'Light Mode' or 'Dark Mode' in content
   const personaInstruction = themeMode === 'light'
     ? "Interviewer Tone: Practical, Fast-paced, Direct."
     : "Interviewer Tone: Critical, Analytical, Deep-dive.";
@@ -188,7 +183,7 @@ export const analyzeCandidate = async (
     **Configuration**:
     1. **Target Level**: ${inputData.interviewLevel}
     2. **Level Instruction**: ${getLevelInstructions(inputData.interviewLevel)}
-    3. **Interviewer Tone**: ${personaInstruction} (Note: This affects tone only, NOT scoring.)
+    3. **Interviewer Tone**: ${personaInstruction}
     4. ${timeLimitInstruction}
 
     **Context**:
@@ -198,13 +193,13 @@ export const analyzeCandidate = async (
     
     **GLOBAL PROHIBITION (CRITICAL)**:
     - You must **NEVER** mention "Light Mode", "Dark Mode", "UI Theme", "Black Mode", "White Mode" in your output text (Summary, Alignment Analysis, Reasons, etc.). 
-    - You must **NEVER** adjust numerical scores based on the "Theme" or "Interviewer Tone". Scores must be purely based on technical merit and fact-checking.
+    - **The UI theme is only for your 'Persona/Tone' simulation (e.g., be direct vs. be deep-dive). Do NOT mention the theme itself.**
     
     **TASK 1: Evaluate Metrics (0-100) based on the 7 Criteria Table**:
     Analyze the code quality and engineering standards.
     **SCORING RULE**: 
     - Do NOT base the score solely on "Suspicion" or "Verification" status.
-    - **Architecture, Code Quality, Problem Solving, Tech Proficiency, Project Completeness, Growth Potential**: These MUST be scored based on the ACTUAL CODE QUALITY provided in the context, regardless of whether it matches the resume perfectly. 
+    - **Architecture, Code Quality, Problem Solving, Tech Proficiency, Project Completeness, Growth Potential**: These MUST be scored based on the ACTUAL CODE QUALITY provided in the context.
     - **Consistency**: This is the ONLY metric where you strictly penalize mismatches between Resume and Code.
     - **OBJECTIVITY**: A score of 80 must be 80 regardless of whether the UI is light or dark. Do not penalize for "style" differences unless they are technical anti-patterns.
     
@@ -214,175 +209,163 @@ export const analyzeCandidate = async (
     4. **techProficiency** (기술 숙련도): Depth of library/framework usage (not just boilerplate).
     5. **projectCompleteness** (완성도): Runnable state, README quality, test coverage, CI/CD.
     6. **consistency** (일치성): Does the code *actually* contain what the resume claims? (Fact Check score).
-    7. **growthPotential** (성장 가능성): Use of modern practices, challenging attempts, learning evidence.
+    7. **growthPotential** (성장 가능성): Evidence of learning, refactoring, or modern practices.
 
-    **TASK 2: Fact Check Items (Verdicts)**:
-    - Identify specific claims in the resume.
-    - Assign a Verdict: [VERIFIED, EXAGGERATED, MISSING, UNCERTAIN].
-    - Use this section to highlight discrepancies, but do not let it completely dominate the technical scoring in Task 1 (except for Consistency).
+    **TASK 2: Identify Fact-Check Items**:
+    Find mismatches, exaggerations, or missing proofs between Candidate Document and Code/JD.
+    - If code supports the claim -> Verdict: VERIFIED.
+    - If code contradicts or is missing -> Verdict: EXAGGERATED / MISSING.
+    - If code is too simple for the claim -> Verdict: EXAGGERATED.
+    
+    **TASK 3: Generate Summary**:
+    - JD Analysis: What is the company looking for?
+    - Alignment Analysis: How well does the candidate fit? Where are the lies/truths?
+    - Practical Tips: Specific questions to ask and improvements.
 
-    **TASK 3: Summary & Question Generation**:
-    - **JD Analysis**: Narrative summary of company's core requirements. 
-      **CRITICAL**: If the JD is missing or a URL you cannot read, DO NOT summarize the candidate's resume here. Instead state: "공고 URL 내용을 확인할 수 없어 일반적인 ${inputData.interviewLevel} 기준을 적용합니다."
-    - **Alignment**: Analyze Fact-check, Exaggeration, Code evidence, Stack consistency, Depth vs Level, Job Fit. **(Do NOT mention the UI theme here.)**
-    - **Tips**: 3 Probable Questions, 3 Weaknesses, 3 Answer Tips.
-    - **Questions**: Generate pressure questions based on [Missing Evidence] or [Exaggeration].
+    **INPUT CODE SNIPPETS**:
+    ${codeContext.substring(0, 100000)} // Limit context size
 
-    **Special Instructions for ML/Research Repositories**:
-    - If the repository contains Python ML code (PyTorch, TensorFlow, sklearn), focus on:
-      1. **Model Architecture**: Are classes defined properly? Is forward pass logical?
-      2. **Training Loop**: Are optimizers, schedulers, and loss functions correctly implemented?
-      3. **Data Processing**: Is there a Dataset/DataLoader? Are augmentations applied?
-      4. **Experimentation**: Are hyperparameters (epochs, lr) visible?
-      5. **External Libraries**: Is the usage of imported libraries justified?
-
-    [Context: Job Description (Requirements)]
-    ${jdContext}
-
-    [Context: Candidate Document (Claims)]
-    ${candidateContent}
-
-    [Context: Codebase Implementation (Evidence)]
-    (Note: Pay close attention to comments and documentation in the code to understand intent)
-    ${codeContext}
+    **INPUT CANDIDATE DOCUMENT**:
+    ${candidateContent.substring(0, 20000)}
   `;
-
-  const parts: any[] = [{ text: promptText }];
-
-  if (inputData.jdType === 'file' && inputData.jdFileBase64) {
-    const base64Data = inputData.jdFileBase64.split(',')[1];
-    parts.push({
-      inlineData: { mimeType: inputData.jdFileMimeType || 'image/png', data: base64Data }
-    });
-    parts.push({ text: "\n(JD Image Provided above)"});
-  }
-  
-  if (inputData.docType === 'resume' && inputData.resumeType === 'file' && inputData.resumeFileBase64) {
-    const base64Data = inputData.resumeFileBase64.split(',')[1];
-    parts.push({
-      inlineData: { mimeType: inputData.resumeFileMimeType || 'application/pdf', data: base64Data }
-    });
-    parts.push({ text: "\n(Candidate Resume File Provided above)"});
-  }
 
   return callWithRetry(async () => {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: { parts },
+      contents: promptText,
       config: {
         responseMimeType: "application/json",
         responseSchema: analysisSchema,
-        temperature: 0.3,
+        temperature: 0.2, // Low temp for factual analysis
       },
     });
-
-    if (response.text) {
-      return JSON.parse(response.text) as AnalysisResponse;
-    }
-    throw new Error("Failed to generate analysis");
+    const text = response.text;
+    return JSON.parse(text) as AnalysisResponse;
   });
 };
 
 export const chatWithInterviewer = async (
-  history: ChatMessage[], 
+  history: ChatMessage[],
   item: AnalysisItem,
   level: InterviewLevel,
-  timeLimit?: number,
-  themeMode: 'light' | 'dark' = 'dark'
+  timeLimitSeconds: number | undefined,
+  themeMode: 'light' | 'dark'
 ): Promise<string> => {
   const ai = getAiClient();
-  const lastUserMessage = history[history.length - 1]?.text.trim();
-
-  // **Rule: Silence / Failed Answer / Time Limit Handling**
-  const silenceTriggers = ["", "모르겠습니다", "모름", "기억안남", "pass", "패스", "...", "잘 모르겠어요"];
-  const isSilence = !lastUserMessage || silenceTriggers.includes(lastUserMessage);
-
-  if (isSilence) {
-    if (timeLimit) {
-      return "답변 시간이 초과되었습니다. 괜찮아요. 실전에서도 긴장하면 그럴 수 있어요. 처음이라 그래요. 다음 질문은 편하게 대답해보세요. (시간 제한 내 답변을 위해 핵심만 요약하는 연습이 필요합니다)";
-    }
-    return "괜찮아요. 처음이라 그래요. 떨려서 그럴 수 있어요. 편하게 다시 생각해보거나 다음 질문으로 넘어갈까요?";
-  }
-
-  // Tone instructions based on theme - but NO mention of UI mode
+  
   const personaInstruction = themeMode === 'light'
-    ? "Persona: Energetic, Direct, Clear. Be straightforward and encouraging."
-    : "Persona: Calm, Analytical, Serious. Be deep, logical, and professional.";
+    ? "Your tone is direct, practical, and fast-paced."
+    : "Your tone is critical, deep-diving, and slightly skeptical.";
+
+  const timeLimitInstruction = timeLimitSeconds
+    ? `IMPORTANT: The user has a ${timeLimitSeconds}s time limit per answer. If their answer is very short or feels rushed, ask them to elaborate if time permits, or penalize them if they missed the core point.`
+    : "";
 
   const systemPrompt = `
-    You are a sharp, skeptical Technical Interviewer. 
-    The user is answering your question about: "${item.resumeClaim}".
+    You are a Technical Lead Interviewer (FactCheck AI). 
+    You are currently interviewing a candidate about a specific suspicion found in their resume vs code.
     
-    **Context**:
-    - Topic: ${item.topic}
-    - Code Reality: ${item.codeObservation}
-    - Verdict: ${item.verdict}
-    - **Candidate Level**: ${level}
-    - **Time Limit**: ${timeLimit ? timeLimit + ' seconds' : 'None'}
-    - **Interviewer Style**: ${personaInstruction}
+    **Topic**: ${item.topic}
+    **Verdict**: ${item.verdict}
+    **Code Observation**: ${item.codeObservation}
+    **Level**: ${level}
+    **Tone**: ${personaInstruction}
+    ${timeLimitInstruction}
     
+    **Goal**: Drill down into the technical details to verify if they really understand what they wrote.
     **Rules**:
-    1. **Language**: STRICTLY **KOREAN ONLY**.
-    2. **Level Adjustment**: 
-       - If ${level} is 'intern/junior', be encouraging but verify basics.
-       - If ${level} is 'mid3/mid5', be critical. Ask for architectural reasons and trade-offs.
-    3. **Time Limit Logic**:
-       - If a Time Limit (${timeLimit}s) is active and the user's answer is too long or verbose, scold them gently: "실전에서는 시간 제한이 있어요. 핵심만 요약해 대답해보세요."
-    4. **Flow**:
-       - If logic matches code -> "알겠습니다. 충분히 소명되었습니다. 면접을 종료하겠습니다."
-       - If vague -> Press for details.
-    5. **Formatting**: Do NOT mention "Light Mode" or "Dark Mode" in your response.
+    1. Keep responses short and sharp (max 2-3 sentences).
+    2. Do NOT be polite. Be professional but demanding.
+    3. If they give a vague answer, ask for specific function names, logic flow, or error handling details.
+    4. **STRICT TURNS**: You MUST ask at least 10 questions in total before concluding. Count the user's turns. If turns < 10, KEEP ASKING technical deep-dive questions.
+    5. Only after 10 questions, if satisfied or if they fail completely, say "면접을 종료하겠습니다." to end the chat.
+    6. Speak in Korean.
+    7. **NEVER** mention "Light Mode" or "Dark Mode" in your chat responses.
   `;
 
-  const contents = [
-    { role: 'user', parts: [{ text: systemPrompt }] },
-    ...history.map(msg => ({
-      role: msg.role,
-      parts: [{ text: msg.text }]
-    }))
-  ];
-
+  // Wrap in Retry Logic to handle API failures during chat
   return callWithRetry(async () => {
-    const response = await ai.models.generateContent({
+    // We strictly use the history provided by the React state.
+    // However, to avoid context limits or format issues, we sanitize and limit it.
+    
+    const lastUserMsg = history[history.length - 1];
+    
+    // Valid history for Gemini must alternate or at least be well-formed.
+    // We take previous messages (excluding the current user message we want to send).
+    let previousMessages = history.slice(0, -1);
+
+    // Context Window Optimization: Keep last 20 messages (approx 10 turns)
+    if (previousMessages.length > 20) {
+      previousMessages = previousMessages.slice(-20);
+    }
+
+    const formattedHistory = previousMessages.map(m => ({
+      role: m.role,
+      parts: [{ text: m.text }],
+    }));
+
+    const chatSession = ai.chats.create({
       model: 'gemini-2.5-flash',
-      contents: contents,
+      config: { 
+        systemInstruction: systemPrompt,
+        temperature: 0.7,
+      },
+      history: formattedHistory
     });
 
-    return response.text || "오류가 발생했습니다.";
+    // Fix: sendMessage expects an object in newer SDKs to properly match signatures
+    const result = await chatSession.sendMessage({ message: lastUserMsg.text });
+    return result.text;
   });
 };
 
 export const getInterviewFeedback = async (
-  history: ChatMessage[], 
+  history: ChatMessage[],
   item: AnalysisItem,
   level: InterviewLevel,
-  themeMode: 'light' | 'dark' = 'dark'
+  themeMode: 'light' | 'dark'
 ): Promise<InterviewFeedbackResponse> => {
   const ai = getAiClient();
-  const conversationText = history.map(m => `${m.role}: ${m.text}`).join('\n');
-
+  
   const prompt = `
-    Analyze the interview transcript and generate a detailed Feedback Report.
+    Analyze the following technical interview transcript.
+    The interviewer (AI) questioned the candidate about: "${item.topic}".
+    The suspicion was: ${item.codeObservation}.
+    Target Level: ${level}.
 
-    **Target Level**: ${level}
+    **CRITICAL SCORING ALIGNMENT RULE**:
+    - The numerical score **MUST** strictly reflect the sentiment of your "Reasoning" and "Improvement" text.
+    - If you write "The candidate explained the core concept perfectly", the Logic Score **MUST** be 5.0.
+    - If you write "The explanation was vague and missed the key point", the Logic Score **MUST** be below 3.0.
+    - **Prohibited**: Do NOT give a high score (4-5) if you listed critical "Action Items" implying they don't know the basics.
+    - **Prohibited**: Do NOT give a low score (1-2) if your feedback text says "Good answer".
+
+    **SCORING CRITERIA (Total 10 Points)**:
+    1. **Logic Score (5 Points)**: 
+       - Did the candidate explain the "Why" and "How" logically? 
+       - Did they use correct terminology?
+       - If they provided good technical reasoning, give HIGH score (4.0-5.0).
+       - If they were vague or dodged the question, give LOW score.
+       - **ZERO SCORE RULE**: If the candidate answered "모르겠습니다" (I don't know), gave an empty answer, or provided a completely irrelevant/nonsense response (무답변, 이해 불가) without attempting to guess or deduce, set score to 0. 
+
+    2. **Solution Score (5 Points)**:
+       - Did they provide a concrete solution or alternative?
+       - Even if they didn't know the exact answer, did they propose a workaround?
+       - **ZERO SCORE RULE**: If they just gave up without offering a solution, or the answer was "I don't know" / empty / nonsense, set score to 0.
+       - **CALIBRATION**: If they solved the problem, score MUST be above 4.5/5.
+
+    **TOTAL SCORE**: Logic (5) + Solution (5) = 10.
     
-    **Rules**:
-    1. **Language**: Korean Only.
-    2. **Scoring Rule (CRITICAL)**:
-       - **Holistic Evaluation**: Do NOT strictly assign 0 points if the conversation ends with "I don't know", "Pass", or "Time limit exceeded".
-       - **Look at the History**: Evaluate the **ENTIRE conversation history**. If the candidate explained their logic or attempted to answer in previous turns, base the score on those parts.
-       - **Honesty Credit**: If the candidate admits ignorance (e.g., "I don't know") rather than making up a lie, award points for **HonestyScore**.
-       - **Zero Score Condition**: Only assign 0 points if the candidate provided **absolutely no meaningful technical content** or refused to answer from the very beginning.
-       - **Theme Independence**: Do NOT adjust scores based on the "Dark Mode" or "Light Mode".
-    3. **Evaluation Criteria**:
-       - Did they answer within the expectations of a ${level}?
-       - Did they prove their contribution?
-    4. **No Meta-Commentary**: Do NOT mention the "UI Mode" (Light/Dark) or the "System Prompt" in the feedback text.
+    **OUTPUT RULES**:
+    - Provide the sum as 'defenseScore' (max 10).
+    - If any score is 0, start the 'Reasoning' text with "[0점 처리 사유]:".
+    - 'positiveFeedback': 3 things they did well.
+    - 'constructiveFeedback': 3 things to improve.
+    - 'actionItems': 3 concrete technical tasks to study (e.g., "Study Redis AOF persistence").
+    - **Language**: Korean.
 
-    **Context**:
-    - Topic: ${item.topic}
-    - Conversation:
-    ${conversationText}
+    **TRANSCRIPT**:
+    ${history.map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n')}
   `;
 
   return callWithRetry(async () => {
@@ -392,13 +375,8 @@ export const getInterviewFeedback = async (
       config: {
         responseMimeType: "application/json",
         responseSchema: feedbackSchema,
-        temperature: 0.5,
       },
     });
-
-    if (response.text) {
-      return JSON.parse(response.text) as InterviewFeedbackResponse;
-    }
-    throw new Error("Failed to generate feedback");
+    return JSON.parse(response.text) as InterviewFeedbackResponse;
   });
 };

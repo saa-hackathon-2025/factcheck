@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { AnalysisItem, ChatMessage, InterviewLevel } from '../types';
 import { chatWithInterviewer } from '../services/geminiService';
@@ -33,6 +34,10 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { theme } = useTheme();
+
+  // Calculate current question number (User messages count)
+  const currentQuestionCount = messages.filter(m => m.role === 'user').length + 1;
+  const targetQuestions = 10;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -103,7 +108,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
     } catch (error) {
       console.error(error);
-      setMessages(prev => [...prev, { role: 'model', text: "오류가 발생했습니다. 다시 시도해주세요." }]);
+      setMessages(prev => [...prev, { role: 'model', text: "통신 오류가 발생했습니다. 잠시 후 다시 답변을 입력해주세요." }]);
     } finally {
       setIsTyping(false);
     }
@@ -132,6 +137,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
           <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${isConcluding ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`}></span>
             심층 압박 면접
+            <span className="text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800 ml-2">
+              Q. {Math.min(currentQuestionCount, targetQuestions)} / {targetQuestions}
+            </span>
           </h3>
           <div className="flex items-center gap-2 mt-1">
              <span className="text-xs text-slate-500 dark:text-slate-400">주제: {item.topic}</span>

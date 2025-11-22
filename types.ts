@@ -90,18 +90,14 @@ export interface ChatMessage {
 }
 
 export interface InterviewFeedbackResponse {
-  defenseScore: number; // Total 0 to 100
+  defenseScore: number; // Total 0 to 10
   
   // Detailed Scoring
-  logicScore: number; // Max 40
+  logicScore: number; // Max 5
   logicReasoning: string; // Why they got points
   logicImprovement: string; // Why they lost points
   
-  honestyScore: number; // Max 30
-  honestyReasoning: string;
-  honestyImprovement: string;
-  
-  solutionScore: number; // Max 30
+  solutionScore: number; // Max 5
   solutionReasoning: string;
   solutionImprovement: string;
 
