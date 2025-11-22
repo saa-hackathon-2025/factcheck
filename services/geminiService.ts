@@ -158,10 +158,11 @@ export const analyzeCandidate = async (
   const ai = getAiClient();
   const themeMode = inputData.themeMode || 'dark';
 
-  // Tone instructions based on theme
-  const toneInstruction = themeMode === 'light'
-    ? "Tone: Bright, Energetic, Crisp. Be sharp but encouraging, like a supportive senior mentor."
-    : "Tone: Calm, Deep, Analytical. Be serious and critical, like a strict code reviewer.";
+  // Define Persona based on theme, BUT DO NOT mention 'Light Mode' or 'Dark Mode' to the AI.
+  // Just give it the personality adjectives.
+  const personaInstruction = themeMode === 'light'
+    ? "Persona: Energetic, Direct, Encouraging, Fast-paced."
+    : "Persona: Professional, Analytical, Deep, Critical, Serious.";
 
   let candidateContent = "";
   if (inputData.docType === 'coverLetter') {
@@ -189,7 +190,7 @@ export const analyzeCandidate = async (
     **Configuration**:
     1. **Target Level**: ${inputData.interviewLevel}
     2. **Level Instruction**: ${getLevelInstructions(inputData.interviewLevel)}
-    3. **UI Mode**: ${themeMode} (${toneInstruction})
+    3. **Interviewer Style**: ${personaInstruction}
     4. ${timeLimitInstruction}
 
     **Context**:
@@ -198,10 +199,14 @@ export const analyzeCandidate = async (
     - **Candidate Document**: ${inputData.docType}
     
     **TASK 1: Evaluate Metrics (0-100) based on the 7 Criteria Table**:
-    Calculate the scores based on technical evidence found in the code.
-    **IMPORTANT**: Score based on the quality and depth of the code, not just by counting false suspicions.
-    1. **architecture** (아키텍처): System design, directory structure, separation of concerns.
-    2. **codeQuality** (코드 품질): Clean code, variable naming, modularity, dead code presence.
+    Analyze the code quality and engineering standards.
+    **SCORING RULE**: 
+    - Do NOT base the score solely on "Suspicion" or "Verification" status.
+    - **Architecture, Code Quality, Problem Solving, Tech Proficiency, Project Completeness, Growth Potential**: These MUST be scored based on the ACTUAL CODE QUALITY provided in the context, regardless of whether it matches the resume perfectly. 
+    - **Consistency**: This is the ONLY metric where you strictly penalize mismatches between Resume and Code.
+    
+    1. **architecture** (아키텍처): System design patterns, directory structure, separation of concerns.
+    2. **codeQuality** (코드 품질): Clean code, variable naming, modularity, presence of dead code.
     3. **problemSolving** (문제 해결력): Logic complexity, algorithm usage, handling edge cases.
     4. **techProficiency** (기술 숙련도): Depth of library/framework usage (not just boilerplate).
     5. **projectCompleteness** (완성도): Runnable state, README quality, test coverage, CI/CD.
@@ -211,7 +216,7 @@ export const analyzeCandidate = async (
     **TASK 2: Fact Check Items (Verdicts)**:
     - Identify specific claims in the resume.
     - Assign a Verdict: [VERIFIED, EXAGGERATED, MISSING, UNCERTAIN].
-    - This verdict helps visualize specific issues but the *score* should be calculated via the 'consistency' metric in Task 1.
+    - Use this section to highlight discrepancies, but do not let it completely dominate the technical scoring in Task 1 (except for Consistency).
 
     **TASK 3: Summary & Question Generation**:
     - **JD Analysis**: Narrative summary of company's core requirements. 
@@ -219,7 +224,8 @@ export const analyzeCandidate = async (
     - **Alignment**: Analyze Fact-check, Exaggeration, Code evidence, Stack consistency, Depth vs Level, Job Fit.
     - **Tips**: 3 Probable Questions, 3 Weaknesses, 3 Answer Tips.
     - **Questions**: Generate pressure questions based on [Missing Evidence] or [Exaggeration].
-    - **Note on UI Mode**: In the analysis summary, briefly mention the UI mode context (e.g., "현재 ${themeMode === 'light' ? '밝은' : '차분한'} 분위기에서 분석되었습니다. ${themeMode === 'light' ? '긍정적인 에너지를 보여주세요.' : '차분하게 논리를 전개하세요.'}").
+    
+    **Important**: Do NOT mention "Light Mode" or "Dark Mode" or "UI Theme" in your analysis text. Focus only on the technical content.
 
     **Special Instructions for ML/Research Repositories**:
     - If the repository contains Python ML code (PyTorch, TensorFlow, sklearn), focus on:
@@ -287,21 +293,20 @@ export const chatWithInterviewer = async (
   const lastUserMessage = history[history.length - 1]?.text.trim();
 
   // **Rule: Silence / Failed Answer / Time Limit Handling**
-  const silenceTriggers = ["", "모르겠습니다", "모름", "기억안남", "pass", "패스", "...", "잘 모르겠어요", "시간 초과", "(답변 시간 초과)"];
-  const isSilence = !lastUserMessage || silenceTriggers.some(t => lastUserMessage.includes(t));
+  const silenceTriggers = ["", "모르겠습니다", "모름", "기억안남", "pass", "패스", "...", "잘 모르겠어요"];
+  const isSilence = !lastUserMessage || silenceTriggers.includes(lastUserMessage);
 
   if (isSilence) {
     if (timeLimit) {
-      // Prompt specifically asked for an "appropriate comment" when time limit fails
-      return `시간이 종료되었습니다. ${themeMode === 'light' ? '아쉽지만, 다음 질문에서 만회해봅시다!' : '실전에서는 시간 관리도 실력입니다. 집중하세요.'} 다음 질문으로 넘어가겠습니다.`;
+      return "답변 시간이 초과되었습니다. 괜찮아요. 실전에서도 긴장하면 그럴 수 있어요. 처음이라 그래요. 다음 질문은 편하게 대답해보세요. (시간 제한 내 답변을 위해 핵심만 요약하는 연습이 필요합니다)";
     }
-    return `괜찮습니다. ${themeMode === 'light' ? '긴장하지 말고 편하게 이야기해보세요.' : '답변이 어렵다면 솔직하게 말하고 다음으로 넘어가도 좋습니다.'} 다른 질문을 드려볼까요?`;
+    return "괜찮아요. 처음이라 그래요. 떨려서 그럴 수 있어요. 편하게 다시 생각해보거나 다음 질문으로 넘어갈까요?";
   }
 
-  // Tone instructions based on theme
-  const tonePrompt = themeMode === 'light'
-    ? "Tone: Bright, Direct, Crisp. Be energetic. If the answer is good, praise efficiently."
-    : "Tone: Calm, Analytical, Serious. Be professional. If the answer is good, acknowledge quietly.";
+  // Tone instructions based on theme - but NO mention of UI mode
+  const personaInstruction = themeMode === 'light'
+    ? "Persona: Energetic, Direct, Clear. Be straightforward and encouraging."
+    : "Persona: Calm, Analytical, Serious. Be deep, logical, and professional.";
 
   const systemPrompt = `
     You are a sharp, skeptical Technical Interviewer. 
@@ -313,7 +318,7 @@ export const chatWithInterviewer = async (
     - Verdict: ${item.verdict}
     - **Candidate Level**: ${level}
     - **Time Limit**: ${timeLimit ? timeLimit + ' seconds' : 'None'}
-    - **UI Mode & Persona**: ${tonePrompt}
+    - **Interviewer Style**: ${personaInstruction}
     
     **Rules**:
     1. **Language**: STRICTLY **KOREAN ONLY**.
@@ -325,6 +330,7 @@ export const chatWithInterviewer = async (
     4. **Flow**:
        - If logic matches code -> "알겠습니다. 충분히 소명되었습니다. 면접을 종료하겠습니다."
        - If vague -> Press for details.
+    5. **Formatting**: Do NOT mention "Light Mode" or "Dark Mode" in your response.
   `;
 
   const contents = [
@@ -358,19 +364,18 @@ export const getInterviewFeedback = async (
     Analyze the interview transcript and generate a detailed Feedback Report.
 
     **Target Level**: ${level}
-    **UI Mode**: ${themeMode}
     
     **Rules**:
     1. **Language**: Korean Only.
     2. **Scoring Rule (CRITICAL)**:
-       - If the user response includes "pass", "I don't know", "...", silence, "시간 초과", or the interviewer mentioned "시간이 종료되었습니다":
+       - If the user response includes "pass", "I don't know", "...", silence, or the interviewer mentioned "답변 시간이 초과되었습니다":
          -> **STRICTLY SET ALL SCORES (Logic, Honesty, Solution) TO 0 POINTS.** (Answer was missing or invalid).
-         -> In 'feedbackSummary', you MUST output exactly: "답변이 입력되지 않았거나 시간 내에 답변하지 못해 0점 처리되었습니다. ${themeMode === 'light' ? '다음엔 더 자신감 있게 도전해보세요!' : '시간 관리와 순발력 훈련이 필요합니다.'}"
+       - **ZERO SCORE RULE**: If the answer is effectively empty, nonsense, or completely fails to address the question, Score MUST be 0.
+       - In these 0-point cases, 'feedbackSummary' MUST state: "답변이 입력되지 않았거나 이해할 수 없어 0점 처리되었습니다."
     3. **Evaluation Criteria**:
        - Did they answer within the expectations of a ${level}?
        - Did they prove their contribution?
-    4. **Theme Context**:
-       - Add a brief comment in 'feedbackSummary' or 'actionItems' about how the user handled the pressure in ${themeMode} mode.
+    4. **No Meta-Commentary**: Do NOT mention the "UI Mode" (Light/Dark) or the "System Prompt" in the feedback text.
 
     **Context**:
     - Topic: ${item.topic}
