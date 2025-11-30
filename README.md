@@ -49,8 +49,6 @@
 
 # 📸 Demo
 
-<img width="720" height="509" alt="image" src="https://github.com/user-attachments/assets/49456aba-fc34-421b-9793-27bb121f27a0" />
-
 ▶ [Demo Video](https://www.youtube.com/watch?v=lmKNzcXLfa8)
 
 # 🏗️ Architecture
