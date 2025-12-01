@@ -15,70 +15,6 @@
 
 <br>
 
-# ✨ Features
-
-### 🔍 3-Way Cross Verification
-세 요소를 증거 기반으로 교차 검증합니다.
-- Resume / Cover Letter (Text, PDF, Notion URL)
-- GitHub Repository (Multiple Repos supported)
-- Job Description (URL · 텍스트 · 이미지 · PDF)  
-
-### 📊 7-Factor AI Evaluation
-구현된 7가지 핵심 기술 지표를 기준으로 정밀 분석합니다.
-- Architecture  
-- Code Quality  
-- Problem Solving  
-- Tech Proficiency  
-- Project Completeness  
-- Consistency  
-- Growth Potential  
-
-### 🧩 Deep Code Analysis
-- 디렉토리 구조 및 핵심 로직 파일 자동 선별  
-- ML/Python, Java/Spring, TS/React 등 주요 스택 자동 인식  
-- README, package.json, requirements.txt 기반 기술 스택 분석  
-
-### 📄 Multimodal JD Parsing
-- 텍스트 / 이미지(JPG, PNG) / PDF / URL  
-- OCR 기반 텍스트 추출 및 JD 재구성  
-
-### 💬 AI 압박 면접 (Live Interview Mode)
-- Intern ~ Senior 레벨 질문  
-- 꼬리 질문 / 추궁 질문  
-- 답변 회피 감지  
-- Time Limit Mode 지원  
-
-### 🌓 Dark / Light Mode
-- 화면 우측 하단 플로팅 버튼  
-- LocalStorage 기반 테마 저장  
-- 전체 페이지 실시간 업데이트  
-
-# 🏗️ Architecture
-
-```mermaid
-graph TD
-    A[User Input] -->|Resume & JD| B(React Client)
-    A -->|GitHub URL| B
-    B -->|Tree & Blob Fetch| C[GitHub REST API]
-    B -->|Multimodal Request| D[Google Gemini 2.5 Flash]
-    C -->|Raw Code| B
-    B -->|Context Assembly| D
-    D -->|Analysis JSON Result| B
-    B -->|AI Chat| E[Pressure Interview Module]
-````
-
-# 🛠️ Tech Stack
-
-| Category         | Technologies                  |
-| ---------------- | ----------------------------- |
-| Frontend         | React 19, TypeScript, Vite    |
-| Styling          | Tailwind CSS, Heroicons       |
-| AI / LLM         | Google Gemini 2.5 Flash       |
-| Data Fetching    | GitHub REST API               |
-| Parsing          | PDF/Image → Base64 Multimodal |
-| State Management | React Context API             |
-| Architecture     | Client-Side SPA               |
-
 # 🚀 How to Use
 
 ## Step 1. Input (원클릭 면접 준비)
@@ -139,6 +75,44 @@ graph TD
    - Solution Score(5점)
    - Total 10점 평가
    - 개선 Action Items 제공
+     
+# ✨ Features
+
+### 🔍 3-Way Cross Verification
+세 요소를 증거 기반으로 교차 검증합니다.
+- Resume / Cover Letter (Text, PDF, Notion URL)
+- GitHub Repository (Multiple Repos supported)
+- Job Description (URL · 텍스트 · 이미지 · PDF)  
+
+### 📊 7-Factor AI Evaluation
+구현된 7가지 핵심 기술 지표를 기준으로 정밀 분석합니다.
+- Architecture  
+- Code Quality  
+- Problem Solving  
+- Tech Proficiency  
+- Project Completeness  
+- Consistency  
+- Growth Potential  
+
+### 🧩 Deep Code Analysis
+- 디렉토리 구조 및 핵심 로직 파일 자동 선별  
+- ML/Python, Java/Spring, TS/React 등 주요 스택 자동 인식  
+- README, package.json, requirements.txt 기반 기술 스택 분석  
+
+### 📄 Multimodal JD Parsing
+- 텍스트 / 이미지(JPG, PNG) / PDF / URL  
+- OCR 기반 텍스트 추출 및 JD 재구성  
+
+### 💬 AI 압박 면접 (Live Interview Mode)
+- Intern ~ Senior 레벨 질문  
+- 꼬리 질문 / 추궁 질문  
+- 답변 회피 감지  
+- Time Limit Mode 지원  
+
+### 🌓 Dark / Light Mode
+- 화면 우측 하단 플로팅 버튼  
+- LocalStorage 기반 테마 저장  
+- 전체 페이지 실시간 업데이트  
 
 # 💡 Detailed Features
 
@@ -161,6 +135,32 @@ graph TD
 - 레벨별 질문 깊이 변화
 - 설계 의도/트레이드오프 집요하게 검증
 - Intern 모드에서는 힌트 제공
+
+# 🏗️ Architecture
+
+```mermaid
+graph TD
+    A[User Input] -->|Resume & JD| B(React Client)
+    A -->|GitHub URL| B
+    B -->|Tree & Blob Fetch| C[GitHub REST API]
+    B -->|Multimodal Request| D[Google Gemini 2.5 Flash]
+    C -->|Raw Code| B
+    B -->|Context Assembly| D
+    D -->|Analysis JSON Result| B
+    B -->|AI Chat| E[Pressure Interview Module]
+````
+
+# 🛠️ Tech Stack
+
+| Category         | Technologies                  |
+| ---------------- | ----------------------------- |
+| Frontend         | React 19, TypeScript, Vite    |
+| Styling          | Tailwind CSS, Heroicons       |
+| AI / LLM         | Google Gemini 2.5 Flash       |
+| Data Fetching    | GitHub REST API               |
+| Parsing          | PDF/Image → Base64 Multimodal |
+| State Management | React Context API             |
+| Architecture     | Client-Side SPA               |
 
 # 📂 Project Structure
 
